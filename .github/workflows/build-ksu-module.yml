@@ -22,30 +22,18 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Clone ech-wk source & Init Go Module
+      # 直接下载作者发布的 Android arm64 二进制（核心修复！）
+      - name: Download prebuilt Android binary from ech-wk releases
         run: |
-          git clone https://github.com/byJoey/ech-wk.git /tmp/ech-wk
-          cd /tmp/ech-wk
-          # 核心修复：初始化 Go 模块（解决找不到 main module 问题）
-          go mod init github.com/byJoey/ech-wk
-          go mod tidy  # 自动整理依赖
-
-      - name: Build ech-wk for Android arm64
-        run: |
-          cd /tmp/ech-wk
-          export GOOS=android
-          export GOARCH=arm64
-          export CGO_ENABLED=0
           mkdir -p $GITHUB_WORKSPACE/module/bin
-          # 指定编译主包路径（核心修复：明确 main 包位置）
-          go build -ldflags="-s -w" -o $GITHUB_WORKSPACE/module/bin/ech-wk ./cmd/ech-wk
-          file $GITHUB_WORKSPACE/module/bin/ech-wk
+          cd $GITHUB_WORKSPACE/module/bin
+          # 下载 v1.4 版本的 Android APK，提取其中的二进制
+          wget -O ech-workers.apk https://github.com/byJoey/ech-wk/releases/download/v1.4/com.ech.workers-20251203-new-arm64-v8a-release.apk
+          # 解压 APK 提取 lib/arm64-v8a/libechworkers.so 并重命名为 ech-wk
+          unzip -q ech-workers.apk lib/arm64-v8a/libechworkers.so
+          mv lib/arm64-v8a/libechworkers.so ./ech-wk
+          chmod 755 ./ech-wk
+          rm -rf lib ech-workers.apk
 
       - name: Package KSU module
         run: |
@@ -65,7 +53,8 @@ jobs:
             ## 版本说明
             ${{ github.event.inputs.release_note }}
             ## 构建信息
-            - 架构：arm64
+            - 架构：arm64-v8a
+            - 基于 ech-wk v1.4 预编译二进制
             - 构建时间：${{ github.run_at }}
             - 构建编号：${{ github.run_id }}
           files: ${{ github.workspace }}/${{ env.ZIP_NAME }}
