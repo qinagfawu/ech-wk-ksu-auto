@@ -3,39 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECH-Workers 配置</title>
+  <title>ECH-Workers 配置管理</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
-    <h1>ECH-Workers 配置</h1>
-    <div class="form-item">
-      <label>服务器地址 (域名:端口)</label>
-      <input type="text" id="server_addr" placeholder="ech.510524.xyz:443">
+    <h1>ECH-Workers 配置管理</h1>
+    
+    <!-- 配置表单 -->
+    <div class="form-section">
+      <div class="form-item">
+        <label>服务端地址 (-f)</label>
+        <input type="text" id="server_addr" placeholder="ech.510524.xyz:443" value="ech.510524.xyz:443">
+      </div>
+      <div class="form-item">
+        <label>本地监听地址 (-l)</label>
+        <input type="text" id="local_port" placeholder="127.0.0.1:1080" value="127.0.0.1:1080">
+      </div>
+      <div class="form-item">
+        <label>身份令牌 (-token)</label>
+        <input type="text" id="token" placeholder="fage" value="fage">
+      </div>
+      <div class="form-item">
+        <label>优选IP (-ip)</label>
+        <input type="text" id="preferred_ip" placeholder="fage.cf.090227.xyz" value="fage.cf.090227.xyz">
+      </div>
+      <div class="form-item">
+        <label>DOH服务器 (-dns)</label>
+        <input type="text" id="doh_server" placeholder="dns.alidns.com/dns-query" value="dns.alidns.com/dns-query">
+      </div>
+      <div class="form-item">
+        <label>ECH域名 (-ech)</label>
+        <input type="text" id="ech_domain" placeholder="cloudflare-ech.com" value="cloudflare-ech.com">
+      </div>
+      
+      <!-- 配置操作按钮 -->
+      <div class="btn-group">
+        <button id="save">保存配置</button>
+      </div>
     </div>
-    <div class="form-item">
-      <label>本地代理端口</label>
-      <input type="number" id="local_port" placeholder="1080">
+
+    <!-- 服务控制区域 -->
+    <div class="control-section">
+      <h2>服务控制</h2>
+      <div class="btn-group">
+        <button id="start">启动服务</button>
+        <button id="stop">停止服务</button>
+        <button id="restart">重启服务</button>
+        <button id="status">查看状态</button>
+      </div>
     </div>
-    <div class="form-item">
-      <label>ECH DOH 服务器</label>
-      <input type="text" id="doh_server" placeholder="dns.alidns.com/dns-query">
-    </div>
-    <div class="form-item">
-      <label>ECH 公钥查询域名</label>
-      <input type="text" id="ech_domain" placeholder="cloudflare-ech.com">
-    </div>
-    <div class="form-item">
-      <label>优选 IP</label>
-      <input type="text" id="preferred_ip" placeholder="fage.cf.090227.xyz">
-    </div>
-    <div class="form-item">
-      <label>身份令牌</label>
-      <input type="text" id="token" placeholder="fage">
-    </div>
-    <div class="btn-group">
-      <button id="save">保存配置</button>
-      <button id="restart">重启服务</button>
+
+    <!-- 日志查看区域 -->
+    <div class="log-section">
+      <h2>运行日志</h2>
+      <button id="refreshLog">刷新日志</button>
+      <div class="log-box" id="logContent">
+        点击「刷新日志」查看运行日志...
+      </div>
     </div>
   </div>
   <script src="app.js"></script>
