@@ -1,0 +1,82 @@
+name: Build & Release ECH-Workers KSU Module
+
+# 触发条件：优先手动触发（方便你控制发布时机）
+on:
+  workflow_dispatch:  # 手动触发（核心，只有你点击才会运行）
+    inputs:
+      module_version:
+        description: '模块版本号（比如 1.0.1）'
+        required: true
+        default: '1.0.0'
+      release_note:
+        description: '版本说明'
+        required: false
+        default: '自动构建的 ECH-Workers KSU 模块'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 必须授予写入 Release 的权限
+
+    steps:
+      # 步骤1：拉取当前仓库代码
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 步骤2：安装 Go 环境（适配 ech-wk 编译）
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      # 步骤3：拉取 ech-wk 源码
+      - name: Clone ech-wk source
+        run: |
+          git clone https://github.com/byJoey/ech-wk.git /tmp/ech-wk
+          cd /tmp/ech-wk
+
+      # 步骤4：交叉编译安卓 arm64 二进制
+      - name: Build ech-wk for Android arm64
+        run: |
+          cd /tmp/ech-wk
+          export GOOS=android
+          export GOARCH=arm64
+          export CGO_ENABLED=0
+          mkdir -p $GITHUB_WORKSPACE/module/bin
+          go build -ldflags="-s -w" -o $GITHUB_WORKSPACE/module/bin/ech-wk ./cmd/ech-wk
+          # 验证二进制（可选，确保编译正确）
+          file $GITHUB_WORKSPACE/module/bin/ech-wk
+
+      # 步骤5：打包 KSU 模块（命名规则：版本号-日期-架构）
+      - name: Package KSU module
+        run: |
+          cd $GITHUB_WORKSPACE/module
+          MODULE_VERSION=${{ github.event.inputs.module_version }}
+          BUILD_DATE=$(date +%Y%m%d)
+          ZIP_NAME="ech-wk-ksu-v${MODULE_VERSION}-${BUILD_DATE}-arm64.zip"
+          zip -r ../$ZIP_NAME ./* -x "*.git*" "*.md" "*.yml"
+          # 输出文件名，方便后续步骤使用
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      # 步骤6：创建 Release 并上传模块包（核心步骤）
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.module_version }}  # 版本标签（比如 v1.0.0）
+          name: ECH-Workers KSU Module v${{ github.event.inputs.module_version }}  # Release 名称
+          body: |
+            ## 版本说明
+            ${{ github.event.inputs.release_note }}
+            
+            ## 构建信息
+            - 架构：arm64
+            - 构建时间：${{ github.run_at }}
+            - 构建编号：${{ github.run_id }}
+          files: |
+            ${{ github.workspace }}/${{ env.ZIP_NAME }}  # 上传打包好的模块包
+          draft: false  # 不设为草稿（直接发布）
+          prerelease: false  # 不设为预发布
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub 自动提供的令牌（无需手动配置）
