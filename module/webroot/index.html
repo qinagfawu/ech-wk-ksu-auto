@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECH-Workers 配置</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>ECH-Workers 配置</h1>
+    <div class="form-item">
+      <label>服务器地址 (域名:端口)</label>
+      <input type="text" id="server_addr" placeholder="ech.510524.xyz:443">
+    </div>
+    <div class="form-item">
+      <label>本地代理端口</label>
+      <input type="number" id="local_port" placeholder="1080">
+    </div>
+    <div class="form-item">
+      <label>ECH DOH 服务器</label>
+      <input type="text" id="doh_server" placeholder="dns.alidns.com/dns-query">
+    </div>
+    <div class="form-item">
+      <label>ECH 公钥查询域名</label>
+      <input type="text" id="ech_domain" placeholder="cloudflare-ech.com">
+    </div>
+    <div class="form-item">
+      <label>优选 IP</label>
+      <input type="text" id="preferred_ip" placeholder="fage.cf.090227.xyz">
+    </div>
+    <div class="form-item">
+      <label>身份令牌</label>
+      <input type="text" id="token" placeholder="fage">
+    </div>
+    <div class="btn-group">
+      <button id="save">保存配置</button>
+      <button id="restart">重启服务</button>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
