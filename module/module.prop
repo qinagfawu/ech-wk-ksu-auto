@@ -1,7 +1,7 @@
 id=ech-wk
 name=ECH-Workers
-version=${{ github.event.inputs.module_version }}
-versionCode=${{ github.run_number }}
+version=1.0.0
+versionCode=1
 author=byJoey (Auto-Built via GitHub Actions)
 description=ECH 加密传输代理（支持 KSU WebUI 配置管理）
 webroot=webroot
