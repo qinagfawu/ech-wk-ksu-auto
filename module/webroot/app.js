@@ -1,49 +1,48 @@
-// 适配 KSU v3.1.0 官方 WebUI API
-function ksudExec(cmd) {
+// 直接读写配置文件，完全绕开 KSU API
+function fileExec(cmd) {
   return new Promise((resolve, reject) => {
-    // 你的 KSU 版本用 window.kernelsu.exec，不是 window.ksud.exec
+    // 你的 KSU 版本用 window.kernelsu.exec
     if (window.kernelsu && typeof window.kernelsu.exec === 'function') {
       window.kernelsu.exec(cmd, (result) => {
         if (result.code === 0) {
-          resolve(result.stdout || '操作成功');
+          resolve(result.stdout || '');
         } else {
-          reject(new Error(result.stderr || '操作失败'));
+          reject(new Error(result.stderr || '命令执行失败'));
         }
       });
     } else {
-      reject(new Error('KSU API 未找到，请检查模块 WebUI 配置'));
+      // 兜底：如果连 kernelsu 都找不到，就用 alert 提示
+      reject(new Error('WebUI 无法执行命令，请手动修改 /data/adb/ech-wk/config.conf'));
     }
   });
 }
 
-// 加载配置
+// 加载配置（从文件读取）
 async function loadConfig() {
   try {
-    const server = await ksudExec("ksud module config get server_addr");
-    document.getElementById('server_addr').value = server.trim() || 'ech.510524.xyz:443';
+    await fileExec("touch /data/adb/ech-wk/config.conf");
+    const conf = await fileExec("cat /data/adb/ech-wk/config.conf");
     
-    const local = await ksudExec("ksud module config get local_port");
-    document.getElementById('local_port').value = local.trim() || '127.0.0.1:1080';
+    const parse = (key) => {
+      const reg = new RegExp(`^${key}\\s*=\\s*(.+)$`, 'm');
+      const match = conf.match(reg);
+      return match ? match[1].trim() : '';
+    };
+
+    document.getElementById('server_addr').value = parse('server_addr') || 'ech.510524.xyz:443';
+    document.getElementById('local_port').value = parse('local_listen') || '127.0.0.1:1080';
+    document.getElementById('token').value = parse('token') || 'fage';
+    document.getElementById('preferred_ip').value = parse('preferred_ip') || 'fage.cf.090227.xyz';
+    document.getElementById('doh_server').value = parse('doh_server') || 'dns.alidns.com/dns-query';
+    document.getElementById('ech_domain').value = parse('ech_domain') || 'cloudflare-ech.com';
     
-    const token = await ksudExec("ksud module config get token");
-    document.getElementById('token').value = token.trim() || 'fage';
-    
-    const ip = await ksudExec("ksud module config get preferred_ip");
-    document.getElementById('preferred_ip').value = ip.trim() || 'fage.cf.090227.xyz';
-    
-    const doh = await ksudExec("ksud module config get doh_server");
-    document.getElementById('doh_server').value = doh.trim() || 'dns.alidns.com/dns-query';
-    
-    const ech = await ksudExec("ksud module config get ech_domain");
-    document.getElementById('ech_domain').value = ech.trim() || 'cloudflare-ech.com';
-    
+    document.getElementById('logContent').innerText = '配置加载完成（从文件读取）';
   } catch (e) {
-    console.error('加载配置失败:', e);
     document.getElementById('logContent').innerText = '加载配置失败：' + e.message;
   }
 }
 
-// 保存配置
+// 保存配置（写入文件）
 document.getElementById('save').addEventListener('click', async () => {
   try {
     const server = document.getElementById('server_addr').value.trim();
@@ -53,14 +52,17 @@ document.getElementById('save').addEventListener('click', async () => {
     const doh = document.getElementById('doh_server').value.trim();
     const ech = document.getElementById('ech_domain').value.trim();
 
-    await ksudExec(`ksud module config set server_addr "${server}"`);
-    await ksudExec(`ksud module config set local_port "${local}"`);
-    await ksudExec(`ksud module config set token "${token}"`);
-    await ksudExec(`ksud module config set preferred_ip "${ip}"`);
-    await ksudExec(`ksud module config set doh_server "${doh}"`);
-    await ksudExec(`ksud module config set ech_domain "${ech}"`);
+    const confContent = `server_addr = ${server}
+local_listen = ${local}
+token = ${token}
+preferred_ip = ${ip}
+doh_server = ${doh}
+ech_domain = ${ech}`;
 
-    alert('配置保存成功！');
+    // 写入配置文件
+    await fileExec(`echo '${confContent}' > /data/adb/ech-wk/config.conf`);
+    alert('配置已保存到文件！');
+    await loadConfig();
   } catch (e) {
     alert('保存失败：' + e.message);
   }
@@ -69,16 +71,7 @@ document.getElementById('save').addEventListener('click', async () => {
 // 启动服务
 document.getElementById('start').addEventListener('click', async () => {
   try {
-    const server = await ksudExec("ksud module config get server_addr");
-    const local = await ksudExec("ksud module config get local_port");
-    const token = await ksudExec("ksud module config get token");
-    const ip = await ksudExec("ksud module config get preferred_ip");
-    const doh = await ksudExec("ksud module config get doh_server");
-    const ech = await ksudExec("ksud module config get ech_domain");
-
-    const cmd = `/data/adb/ech-wk/ech-wk -f "${server.trim()}" -l "${local.trim()}" -token "${token.trim()}" -ip "${ip.trim()}" -dns "${doh.trim()}" -ech "${ech.trim()}" >> /data/adb/ech-wk/ech.log 2>&1 &`;
-    await ksudExec(cmd);
-    
+    await fileExec("/data/adb/modules/ech-wk/service.sh");
     alert('服务启动成功！');
     await checkStatus();
   } catch (e) {
@@ -89,7 +82,7 @@ document.getElementById('start').addEventListener('click', async () => {
 // 停止服务
 document.getElementById('stop').addEventListener('click', async () => {
   try {
-    await ksudExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
+    await fileExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
     alert('服务已停止！');
     await checkStatus();
   } catch (e) {
@@ -100,19 +93,9 @@ document.getElementById('stop').addEventListener('click', async () => {
 // 重启服务
 document.getElementById('restart').addEventListener('click', async () => {
   try {
-    await ksudExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
+    await fileExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const server = await ksudExec("ksud module config get server_addr");
-    const local = await ksudExec("ksud module config get local_port");
-    const token = await ksudExec("ksud module config get token");
-    const ip = await ksudExec("ksud module config get preferred_ip");
-    const doh = await ksudExec("ksud module config get doh_server");
-    const ech = await ksudExec("ksud module config get ech_domain");
-
-    const cmd = `/data/adb/ech-wk/ech-wk -f "${server.trim()}" -l "${local.trim()}" -token "${token.trim()}" -ip "${ip.trim()}" -dns "${doh.trim()}" -ech "${ech.trim()}" >> /data/adb/ech-wk/ech.log 2>&1 &`;
-    await ksudExec(cmd);
-    
+    await fileExec("/data/adb/modules/ech-wk/service.sh");
     alert('服务重启成功！');
     await checkStatus();
   } catch (e) {
@@ -123,7 +106,7 @@ document.getElementById('restart').addEventListener('click', async () => {
 // 查看状态
 async function checkStatus() {
   try {
-    const result = await ksudExec("ps -A | grep ech-wk | grep -v grep");
+    const result = await fileExec("ps -A | grep ech-wk | grep -v grep");
     if (result) {
       alert('服务正在运行！');
       document.getElementById('logContent').innerText = '服务状态：运行中\n' + result;
@@ -140,8 +123,8 @@ document.getElementById('status').addEventListener('click', checkStatus);
 // 刷新日志
 async function refreshLog() {
   try {
-    await ksudExec("touch /data/adb/ech-wk/ech.log");
-    const log = await ksudExec("tail -n 100 /data/adb/ech-wk/ech.log");
+    await fileExec("touch /data/adb/ech-wk/ech.log");
+    const log = await fileExec("tail -n 100 /data/adb/ech-wk/ech.log");
     document.getElementById('logContent').innerText = log || '日志为空（服务未运行）';
   } catch (e) {
     document.getElementById('logContent').innerText = '读取日志失败：' + e.message;
