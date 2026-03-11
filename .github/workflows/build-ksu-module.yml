@@ -32,7 +32,6 @@ jobs:
         run: |
           git clone https://github.com/byJoey/ech-wk.git /tmp/ech-wk
           cd /tmp/ech-wk
-          # 初始化 Go 模块（因为源码里没有 go.mod）
           go mod init ech-workers
           go mod tidy
 
@@ -43,7 +42,6 @@ jobs:
           export GOARCH=arm64
           export CGO_ENABLED=0
           mkdir -p $GITHUB_WORKSPACE/module/bin
-          # 核心修复：直接编译根目录的 ech-workers.go
           go build -ldflags="-s -w" -o $GITHUB_WORKSPACE/module/bin/ech-wk ./ech-workers.go
           file $GITHUB_WORKSPACE/module/bin/ech-wk
 
@@ -52,6 +50,9 @@ jobs:
           cd $GITHUB_WORKSPACE/module
           MODULE_VERSION=${{ github.event.inputs.module_version }}
           BUILD_DATE=$(date +%Y%m%d)
+          # 正确替换 module.prop 里的变量（用 # 作为 sed 分隔符，避免和路径冲突）
+          sed -i "s#\${{ github.event.inputs.module_version }}#${MODULE_VERSION}#g" module.prop
+          sed -i "s#\${{ github.run_number }}#${{ github.run_number }}#g" module.prop
           ZIP_NAME="ech-wk-ksu-v${MODULE_VERSION}-${BUILD_DATE}-arm64.zip"
           zip -r ../$ZIP_NAME ./* -x "*.git*" "*.md" "*.yml"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
