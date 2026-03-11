@@ -1,8 +1,9 @@
-// 适配 KSU 官方 WebUI API
+// 适配 KSU v3.1.0 官方 WebUI API
 function ksudExec(cmd) {
   return new Promise((resolve, reject) => {
-    if (window.ksud && typeof window.ksud.exec === 'function') {
-      window.ksud.exec(cmd, (result) => {
+    // 你的 KSU 版本用 window.kernelsu.exec，不是 window.ksud.exec
+    if (window.kernelsu && typeof window.kernelsu.exec === 'function') {
+      window.kernelsu.exec(cmd, (result) => {
         if (result.code === 0) {
           resolve(result.stdout || '操作成功');
         } else {
@@ -10,7 +11,7 @@ function ksudExec(cmd) {
         }
       });
     } else {
-      reject(new Error('KSU API 未找到，请更新 KSU 版本'));
+      reject(new Error('KSU API 未找到，请检查模块 WebUI 配置'));
     }
   });
 }
@@ -38,7 +39,7 @@ async function loadConfig() {
     
   } catch (e) {
     console.error('加载配置失败:', e);
-    alert('加载配置失败，使用默认值');
+    document.getElementById('logContent').innerText = '加载配置失败：' + e.message;
   }
 }
 
@@ -68,7 +69,6 @@ document.getElementById('save').addEventListener('click', async () => {
 // 启动服务
 document.getElementById('start').addEventListener('click', async () => {
   try {
-    // 读取最新配置并启动
     const server = await ksudExec("ksud module config get server_addr");
     const local = await ksudExec("ksud module config get local_port");
     const token = await ksudExec("ksud module config get token");
@@ -76,12 +76,11 @@ document.getElementById('start').addEventListener('click', async () => {
     const doh = await ksudExec("ksud module config get doh_server");
     const ech = await ksudExec("ksud module config get ech_domain");
 
-    // 官方参数启动
     const cmd = `/data/adb/ech-wk/ech-wk -f "${server.trim()}" -l "${local.trim()}" -token "${token.trim()}" -ip "${ip.trim()}" -dns "${doh.trim()}" -ech "${ech.trim()}" >> /data/adb/ech-wk/ech.log 2>&1 &`;
     await ksudExec(cmd);
     
     alert('服务启动成功！');
-    await checkStatus(); // 启动后自动查看状态
+    await checkStatus();
   } catch (e) {
     alert('启动失败：' + e.message);
   }
@@ -92,7 +91,7 @@ document.getElementById('stop').addEventListener('click', async () => {
   try {
     await ksudExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
     alert('服务已停止！');
-    await checkStatus(); // 停止后自动查看状态
+    await checkStatus();
   } catch (e) {
     alert('停止失败：' + e.message);
   }
@@ -102,9 +101,8 @@ document.getElementById('stop').addEventListener('click', async () => {
 document.getElementById('restart').addEventListener('click', async () => {
   try {
     await ksudExec("pkill -9 -f /data/adb/ech-wk/ech-wk");
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // 重新启动
     const server = await ksudExec("ksud module config get server_addr");
     const local = await ksudExec("ksud module config get local_port");
     const token = await ksudExec("ksud module config get token");
@@ -122,7 +120,7 @@ document.getElementById('restart').addEventListener('click', async () => {
   }
 });
 
-// 查看服务状态
+// 查看状态
 async function checkStatus() {
   try {
     const result = await ksudExec("ps -A | grep ech-wk | grep -v grep");
@@ -139,12 +137,10 @@ async function checkStatus() {
 }
 document.getElementById('status').addEventListener('click', checkStatus);
 
-// 查看运行日志
+// 刷新日志
 async function refreshLog() {
   try {
-    // 创建日志文件（如果不存在）
     await ksudExec("touch /data/adb/ech-wk/ech.log");
-    // 读取最后100行日志
     const log = await ksudExec("tail -n 100 /data/adb/ech-wk/ech.log");
     document.getElementById('logContent').innerText = log || '日志为空（服务未运行）';
   } catch (e) {
@@ -153,8 +149,8 @@ async function refreshLog() {
 }
 document.getElementById('refreshLog').addEventListener('click', refreshLog);
 
-// 页面加载时初始化
+// 页面加载
 window.onload = async () => {
   await loadConfig();
-  await checkStatus(); // 加载页面时自动检查状态
+  await checkStatus();
 };
